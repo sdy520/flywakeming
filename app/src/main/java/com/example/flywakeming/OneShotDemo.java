@@ -7,6 +7,7 @@ import org.json.JSONObject;
 
 import com.iflytek.cloud.ErrorCode;
 import com.iflytek.cloud.GrammarListener;
+import com.iflytek.cloud.InitListener;
 import com.iflytek.cloud.RecognizerListener;
 import com.iflytek.cloud.RecognizerResult;
 import com.iflytek.cloud.SpeechConstant;
@@ -43,9 +44,9 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 
 import androidx.core.app.ActivityCompat;
 
-public class OneShotDemo extends Activity implements OnClickListener{
+public class OneShotDemo extends Activity{
 	private String TAG = "ivw";
-	private Toast mToast;
+	//private Toast mToast;
 	private TextView textView;
 	// 语音唤醒对象
 	private VoiceWakeuper mIvw;
@@ -53,11 +54,12 @@ public class OneShotDemo extends Activity implements OnClickListener{
 	private SpeechRecognizer mAsr;
 	// 唤醒结果内容
 	private String resultString;
+
+	private int curThresh = 1450;
 	// 识别结果内容
 	private String recoString;
-	private int curThresh = 1450;
 	// 本地语法id
-	private String mLocalGrammarID="1";
+	private String mLocalGrammarID=null;
 
 	// 本地语法文件
 	private String mLocalGrammar = null;
@@ -67,8 +69,6 @@ public class OneShotDemo extends Activity implements OnClickListener{
 	// 引擎类型
 	private String mEngineType = SpeechConstant.TYPE_LOCAL;
 	//构建语法标志位
-	private boolean gramflag=true;
-	private boolean dataflag=false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -87,28 +87,20 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		// 初始化唤醒对象
 		mIvw = VoiceWakeuper.createWakeuper(this, null);
 		// 初始化识别对象---唤醒+识别,用来构建语法
-		mAsr = SpeechRecognizer.createRecognizer(this, null);
+		mAsr = SpeechRecognizer.createRecognizer(this, mInitListener);
+		if(mAsr==null){
+			Log.e(TAG,"masr is null");
+		}
 		// 初始化语法文件
 		mLocalGrammar = readFile(this, "call.bnf", "utf-8");
 
 		initgrammar();
-		if(gramflag){
-			initdata();
-		}
-		//&&mIvw == null
-		if(dataflag){
-			mIvw.stopListening();
-			Log.e("111","mRecognizerListener");
-			mAsr.startListening(mRecognizerListener);
-			dataflag=false;
-		}
+
+		initdata();
+
 	}
 	
 	private void initUI() {
-		findViewById(R.id.btn_oneshot).setOnClickListener(OneShotDemo.this);
-		findViewById(R.id.btn_stop).setOnClickListener(OneShotDemo.this);
-		findViewById(R.id.btn_grammar).setOnClickListener(OneShotDemo.this);
-		mToast = Toast.makeText(this, "", Toast.LENGTH_SHORT);
 		textView = (TextView) findViewById(R.id.txt_show_msg);
 	}
 	
@@ -124,8 +116,8 @@ public class OneShotDemo extends Activity implements OnClickListener{
 			}
 		}
 	};
-	private void initgrammar() {
 
+	private void initgrammar() {
 		int ret = 0;
 		mAsr.setParameter(SpeechConstant.PARAMS, null);
 		mAsr.setParameter(SpeechConstant.TEXT_ENCODING, "utf-8");
@@ -133,17 +125,16 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		mAsr.setParameter(SpeechConstant.ENGINE_TYPE, mEngineType);
 		// 设置语法构建路径
 		mAsr.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
+		// 设置本地识别使用语法id
+		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "call");
+		// 设置识别的门限值
+		mAsr.setParameter(SpeechConstant.MIXED_THRESHOLD, "30");
 		// 设置资源路径
-
+		// 设置音频保存路径，保存音频格式支持pcm、wav，设置路径为sd卡请注意WRITE_EXTERNAL_STORAGE权限
+		mAsr.setParameter(SpeechConstant.AUDIO_FORMAT,"wav");
+		mAsr.setParameter(SpeechConstant.ASR_AUDIO_PATH, Environment.getExternalStorageDirectory()+"/msc/asr.wav");
 		mAsr.setParameter(ResourceUtil.ASR_RES_PATH, getResourcePath());
 		ret = mAsr.buildGrammar("bnf", mLocalGrammar, grammarListener);
-
-
-		//ret = mAsr.startListening(mRecognizerListener);
-
-
-
-		//Log.e("gram",mLocalGrammarID);
 		if (ret != ErrorCode.SUCCESS) {
 			showTip("语法构建失败,错误码：" + ret + ",请点击网址https://www.xfyun.cn/document/error-code查询解决方案");
 		}
@@ -176,121 +167,34 @@ public class OneShotDemo extends Activity implements OnClickListener{
 			// 设置返回结果格式
 			//mIvw.setParameter(SpeechConstant.RESULT_TYPE, "json");
 			// 设置持续进行唤醒
-	//		mIvw.setParameter(SpeechConstant.KEEP_ALIVE,"1");
+			mIvw.setParameter(SpeechConstant.KEEP_ALIVE,"1");
 
 //
-//				mIvw.setParameter(SpeechConstant.IVW_SHOT_WORD, "0");
+//			mIvw.setParameter(SpeechConstant.IVW_SHOT_WORD, "0");
 
 			// 设置唤醒录音保存路径，保存最近一分钟的音频
 			mIvw.setParameter( SpeechConstant.IVW_AUDIO_PATH, Environment.getExternalStorageDirectory().getPath()+"/msc/ivw.wav" );
 			mIvw.setParameter( SpeechConstant.AUDIO_FORMAT, "wav" );
 			mIvw.startListening(mWakeuperListener);
-			/*
-			if (!TextUtils.isEmpty(mLocalGrammarID)) {
-				// 设置本地识别资源
-				mIvw.setParameter(ResourceUtil.ASR_RES_PATH,
-						getResourcePath());
-				// 设置语法构建路径
-				mIvw.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
-				// 设置本地识别使用语法id
-			   Log.e("gram",mLocalGrammarID);
-				//mIvw.setParameter(SpeechConstant.LOCAL_GRAMMAR,
-				//		mLocalGrammarID);
-				mIvw.setParameter(SpeechConstant.LOCAL_GRAMMAR,
-						"call");
-				mIvw.startListening(mWakeuperListener);
-			} else {
-				showTip("请先构建语法");
-				Log.e("gram","请先构建语法");
-			}*/
 		} else {
 			showTip("唤醒未初始化");
 		}
 
 	}
-	@Override
-	public void onClick(View v) {
-		switch (v.getId()) {
-			/*
-		case R.id.btn_oneshot:
-			// 非空判断，防止因空指针使程序崩溃
-			mIvw = VoiceWakeuper.getWakeuper();
-			if (mIvw != null) {
-				resultString = "";
-				recoString = "";
-				textView.setText(resultString);
 
-				final String resPath = ResourceUtil.generateResourcePath(this, RESOURCE_TYPE.assets, "ivw/"+getString(R.string.app_id)+".jet");
-				// 清空参数
-				mIvw.setParameter(SpeechConstant.PARAMS, null);
-				// 设置识别引擎
-				mIvw.setParameter(SpeechConstant.ENGINE_TYPE, mEngineType);
-				// 设置唤醒资源路径
-				mIvw.setParameter(ResourceUtil.IVW_RES_PATH, resPath);
-				/**
-				 * 唤醒门限值，根据资源携带的唤醒词个数按照“id:门限;id:门限”的格式传入
-				 * 示例demo默认设置第一个唤醒词，建议开发者根据定制资源中唤醒词个数进行设置
-				 *//*
-				mIvw.setParameter(SpeechConstant.IVW_THRESHOLD, "0:"
-						+ curThresh);
-				// 设置唤醒+识别模式
-				mIvw.setParameter(SpeechConstant.IVW_SST, "oneshot");
-				// 设置返回结果格式
-				mIvw.setParameter(SpeechConstant.RESULT_TYPE, "json");
-//				
-//				mIvw.setParameter(SpeechConstant.IVW_SHOT_WORD, "0");
-				
-				// 设置唤醒录音保存路径，保存最近一分钟的音频
-				mIvw.setParameter( SpeechConstant.IVW_AUDIO_PATH, Environment.getExternalStorageDirectory().getPath()+"/msc/ivw.wav" );
-				mIvw.setParameter( SpeechConstant.AUDIO_FORMAT, "wav" );
+	/**
+	 * 初始化监听器。
+	 */
+	private InitListener mInitListener = new InitListener() {
 
-					if (!TextUtils.isEmpty(mLocalGrammarID)) {
-						// 设置本地识别资源
-						mIvw.setParameter(ResourceUtil.ASR_RES_PATH,
-								getResourcePath());
-						// 设置语法构建路径
-						mIvw.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
-						// 设置本地识别使用语法id
-						mIvw.setParameter(SpeechConstant.LOCAL_GRAMMAR,
-								mLocalGrammarID);
-						mIvw.startListening(mWakeuperListener);
-					} else {
-						showTip("请先构建语法");
-					}
-			} else {
-				showTip("唤醒未初始化");
+		@Override
+		public void onInit(int code) {
+			Log.d(TAG, "SpeechRecognizer init() code = " + code);
+			if (code != ErrorCode.SUCCESS) {
+				showTip("初始化失败,错误码："+code+",请点击网址https://www.xfyun.cn/document/error-code查询解决方案");
 			}
-			break;*/
-		/*
-		case R.id.btn_grammar:
-			int ret = 0;
-				mAsr.setParameter(SpeechConstant.PARAMS, null);
-				mAsr.setParameter(SpeechConstant.TEXT_ENCODING, "utf-8");
-				// 设置引擎类型
-				mAsr.setParameter(SpeechConstant.ENGINE_TYPE, mEngineType);
-				// 设置语法构建路径
-				mAsr.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
-				// 设置资源路径
-				mAsr.setParameter(ResourceUtil.ASR_RES_PATH, getResourcePath());
-				ret = mAsr.buildGrammar("bnf", mLocalGrammar, grammarListener);
-				if (ret != ErrorCode.SUCCESS) {
-					showTip("语法构建失败,错误码：" + ret+",请点击网址https://www.xfyun.cn/document/error-code查询解决方案");
-				}
-			break;
-		*/
-		case R.id.btn_stop:
-			mIvw = VoiceWakeuper.getWakeuper();
-			if (mIvw != null) {
-				mIvw.stopListening();
-			} else {
-				showTip("唤醒未初始化");
-			}
-			break;
-
-		default:
-			break;
 		}
-	}
+	};
 	/**
 	 * 识别监听器。
 	 */
@@ -306,6 +210,8 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		public void onResult(final RecognizerResult result, boolean isLast) {
 			if (null != result && !TextUtils.isEmpty(result.getResultString())) {
 				Log.d(TAG, "recognizer result：" + result.getResultString());
+				recoString += JsonParser.parseGrammarResult(result.getResultString());
+				textView.setText(recoString);
 			} else {
 				Log.d(TAG, "recognizer result : null");
 			}
@@ -332,10 +238,7 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		public void onEvent(int eventType, int arg1, int arg2, Bundle obj) {
 			// 以下代码用于获取与云端的会话id，当业务出错时将会话id提供给技术支持人员，可用于查询会话日志，定位出错原因
 			// 若使用本地能力，会话id为null
-			//	if (SpeechEvent.EVENT_SESSION_ID == eventType) {
-			//		String sid = obj.getString(SpeechEvent.KEY_EVENT_SESSION_ID);
-			//		Log.d(TAG, "session id =" + sid);
-			//	}
+
 		}
 
 	};
@@ -366,12 +269,14 @@ public class OneShotDemo extends Activity implements OnClickListener{
 				resultString = "结果解析出错";
 				e.printStackTrace();
 			}
+			//为了解决多次唤醒后，一次识别出现多次同一唤醒词
+			if(mAsr!=null)
+			{
+				mAsr.stopListening();
+			}
 			textView.setText(resultString);
-
-			dataflag=true;
-
-			Log.e("dataflag","dataflag");
-			gramflag=false;
+			Log.e("111","mRecognizerListener");
+			mAsr.startListening(mRecognizerListener);
 
 		}
 
@@ -390,11 +295,11 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		public void onEvent(int eventType, int isLast, int arg2, Bundle obj) {
 			Log.d(TAG, "eventType:"+eventType+ "arg1:"+isLast + "arg2:" + arg2);
 			// 识别结果
-			if (SpeechEvent.EVENT_IVW_RESULT == eventType) {
-				RecognizerResult reslut = ((RecognizerResult)obj.get(SpeechEvent.KEY_EVENT_IVW_RESULT));
-				recoString += JsonParser.parseGrammarResult(reslut.getResultString());
-				textView.setText(recoString);
-			}
+			//if (SpeechEvent.EVENT_IVW_RESULT == eventType) {
+			//	RecognizerResult reslut = ((RecognizerResult)obj.get(SpeechEvent.KEY_EVENT_IVW_RESULT));
+			//	recoString += JsonParser.parseGrammarResult(reslut.getResultString());
+			//	textView.setText(recoString);
+			//}
 		}
 
 		@Override
@@ -404,7 +309,7 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		}
 
 	};
-	
+
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
@@ -458,8 +363,8 @@ public class OneShotDemo extends Activity implements OnClickListener{
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				mToast.setText(str);
-				mToast.show();
+				//mToast.setText(str);
+				//mToast.show();
 			}
 		});
 	}
