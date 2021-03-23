@@ -87,12 +87,13 @@ public class OneShotDemo extends Activity{
 		// 初始化唤醒对象
 		mIvw = VoiceWakeuper.createWakeuper(this, null);
 		// 初始化识别对象---唤醒+识别,用来构建语法
+		//mAsr = SpeechRecognizer.createRecognizer(this, mInitListener);
 		mAsr = SpeechRecognizer.createRecognizer(this, mInitListener);
 		if(mAsr==null){
 			Log.e(TAG,"masr is null");
 		}
 		// 初始化语法文件
-		mLocalGrammar = readFile(this, "call.bnf", "utf-8");
+		mLocalGrammar = readFile(this, "dynasty.bnf", "utf-8");
 
 		initgrammar();
 
@@ -126,7 +127,7 @@ public class OneShotDemo extends Activity{
 		// 设置语法构建路径
 		mAsr.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
 		// 设置本地识别使用语法id
-		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "call");
+		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "dynasty");
 		// 设置识别的门限值
 		mAsr.setParameter(SpeechConstant.MIXED_THRESHOLD, "30");
 		// 设置资源路径
@@ -195,6 +196,7 @@ public class OneShotDemo extends Activity{
 			}
 		}
 	};
+
 	/**
 	 * 识别监听器。
 	 */
@@ -210,7 +212,7 @@ public class OneShotDemo extends Activity{
 		public void onResult(final RecognizerResult result, boolean isLast) {
 			if (null != result && !TextUtils.isEmpty(result.getResultString())) {
 				Log.d(TAG, "recognizer result：" + result.getResultString());
-				recoString += JsonParser.parseGrammarResult(result.getResultString());
+				recoString = JsonParser.parseGrammarResult(result.getResultString());
 				textView.setText(recoString);
 			} else {
 				Log.d(TAG, "recognizer result : null");
@@ -277,6 +279,7 @@ public class OneShotDemo extends Activity{
 			textView.setText(resultString);
 			Log.e("111","mRecognizerListener");
 			mAsr.startListening(mRecognizerListener);
+
 
 		}
 
