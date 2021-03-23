@@ -1,5 +1,5 @@
 #BNF+IAT 1.0 UTF-8;
-!grammar dynasty
+!grammar dynasty;
 !slot <callCmd>;
 !slot <contact>;
 !start <callStart>;
