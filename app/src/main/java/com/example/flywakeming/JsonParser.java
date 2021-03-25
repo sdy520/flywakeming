@@ -127,7 +127,72 @@ public class JsonParser {
 		} 
 		return ret.toString();
 	}
+	public static int parseGrammarResultcontact(String json) {
+		int ret=0;
+		try {
+			JSONTokener tokener = new JSONTokener(json);
+			JSONObject joResult = new JSONObject(tokener);
 
+			JSONArray words = joResult.getJSONArray("ws");
+			for (int i = 0; i < words.length(); i++) {
+				String item = words.getJSONObject(i).getString("slot");
+				if(item.equals("<contact>"))
+				{
+					JSONArray items = words.getJSONObject(i).getJSONArray("cw");
+					for(int j = 0; j < items.length(); j++)
+					{
+						JSONObject obj = items.getJSONObject(j);
+						if(obj.getString("w").contains("nomatch"))
+						{
+							//ret.append("没有匹配结果.");
+							return 0;
+						}
+
+
+						ret= obj.getInt("sc");
+					}
+				}
+
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			//ret.append("没有匹配结果.");
+		}
+		return ret;
+	}
+	public static int parseGrammarResultcallCmd(String json) {
+		int ret=0;
+		try {
+			JSONTokener tokener = new JSONTokener(json);
+			JSONObject joResult = new JSONObject(tokener);
+
+			JSONArray words = joResult.getJSONArray("ws");
+			for (int i = 0; i < words.length(); i++) {
+				String item = words.getJSONObject(i).getString("slot");
+				if(item.equals("<callCmd>"))
+				{
+					JSONArray items = words.getJSONObject(i).getJSONArray("cw");
+					for(int j = 0; j < items.length(); j++)
+					{
+						JSONObject obj = items.getJSONObject(j);
+						if(obj.getString("w").contains("nomatch"))
+						{
+							//ret.append("没有匹配结果.");
+							return 0;
+						}
+
+
+						ret= obj.getInt("sc");
+					}
+				}
+
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			//ret.append("没有匹配结果.");
+		}
+		return ret;
+	}
 	public static String parseTransResult(String json,String key) {
 		StringBuffer ret = new StringBuffer();
 		try {

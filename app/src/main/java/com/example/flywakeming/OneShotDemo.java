@@ -1,6 +1,9 @@
 package com.example.flywakeming;
 
+import java.io.File;
 import java.io.InputStream;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -23,12 +26,17 @@ import com.iflytek.cloud.util.ResourceUtil.RESOURCE_TYPE;
 
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -45,8 +53,12 @@ import android.widget.SeekBar.OnSeekBarChangeListener;
 import androidx.core.app.ActivityCompat;
 
 public class OneShotDemo extends Activity{
+	private MediaPlayer mediaPlayer;
+	private MediaPlayer questionPlayer;
+	//初始化音频管理器
+	private AudioManager mAudioManager;
 	private String TAG = "ivw";
-	//private Toast mToast;
+	private Toast mToast;
 	private TextView textView;
 	// 语音唤醒对象
 	private VoiceWakeuper mIvw;
@@ -68,14 +80,35 @@ public class OneShotDemo extends Activity{
 			+ "/msc/test";
 	// 引擎类型
 	private String mEngineType = SpeechConstant.TYPE_LOCAL;
-	//构建语法标志位
-
+	//第几个景点
+	private int posnumber=1;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.oneshot_activity);
 		requestPermissions();
+
+		//播放问题语音
+		questionPlayer = new MediaPlayer();
+
+		mediaPlayer = new MediaPlayer();
+		//初始化音频管理器
+		mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
+		try {
+			String filename = "/storage/emulated/0/景点";
+			filename=filename+posnumber+".mp3";
+			//File file = new File(Environment.getExternalStorageDirectory(), "景点1.mp3");
+			mediaPlayer.setDataSource(filename); // 指定音频文件的路径/storage/emulated/0/music.mp3
+			//mediaPlayer.setLooping(true);//设置为循环播放
+			mediaPlayer.prepare(); // 让MediaPlayer进入到准备状态
+
+			Log.e("11",filename);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+
 		StringBuffer param = new StringBuffer();
 		param.append("appid="+getString(R.string.app_id));
 		param.append(",");
@@ -93,16 +126,115 @@ public class OneShotDemo extends Activity{
 			Log.e(TAG,"masr is null");
 		}
 		// 初始化语法文件
-		mLocalGrammar = readFile(this, "dynasty.bnf", "utf-8");
+		mLocalGrammar = readFile(this, "dynasty1.bnf", "utf-8");
 
 		initgrammar();
 
 		initdata();
-
+		mediaPlayer.start(); // 开始播放
+		mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+			@Override
+			public void onCompletion(MediaPlayer mp) {
+				new Thread(new ThreadShow()).start();
+				Log.e("44","laile");
+			}
+		});
 	}
-	
+/*
+	@Override
+	public void run() {
+		//while (true) {
+		Log.e("44","laile");
+			try {
+				Thread.sleep(10000);//线程暂停10秒，单位毫秒
+				Message message=new Message();
+				message.what=1;
+				handler.sendMessage(message);//发送消息
+			} catch (InterruptedException e) {
+// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		//}
+	}
+	Handler handler = new Handler() {
+		public void handleMessage(Message msg) {
+		//要做的事情 
+			String filename = "/storage/emulated/0/dynasty";
+			filename=filename+posnumber+".mp3";
+			try {
+				if(mediaPlayer.isPlaying())
+				{
+					mediaPlayer.pause();
+				}
+				questionPlayer.setDataSource(filename); // 指定音频文件的路径/storage/emulated/0/music.mp3
+				//mediaPlayer.setLooping(true);//设置为循环播放
+				questionPlayer.prepare(); // 让MediaPlayer进入到准备状态
+				questionPlayer.start();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			questionPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+				@Override
+				public void onCompletion(MediaPlayer mp) {
+					setgram();
+				}
+			});
+			super.handleMessage(msg);
+		}
+	};*/
+	// handler类接收数据
+@SuppressLint("HandlerLeak")
+Handler handler = new Handler() {
+		public void handleMessage(Message msg) {
+			if (msg.what == 1) {
+				Log.e("44444","laile");
+				String filename = "/storage/emulated/0/dynasty";
+				filename=filename+posnumber+".mp3";
+				try {
+					if(mediaPlayer.isPlaying())
+					{
+						mediaPlayer.pause();
+					}
+					questionPlayer.setDataSource(filename); // 指定音频文件的路径/storage/emulated/0/music.mp3
+					//mediaPlayer.setLooping(true);//设置为循环播放
+					questionPlayer.prepare(); // 让MediaPlayer进入到准备状态
+					questionPlayer.start();
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				questionPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+					@Override
+					public void onCompletion(MediaPlayer mp) {
+						setgram();
+					}
+				});
+			}
+		};
+	};
+
+	// 线程类
+	class ThreadShow implements Runnable {
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			//while (true) {
+				try {
+					Thread.sleep(6000);
+					Message msg = new Message();
+					msg.what = 1;
+					handler.sendMessage(msg);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			//}
+		}
+	}
+
 	private void initUI() {
 		textView = (TextView) findViewById(R.id.txt_show_msg);
+		mToast = Toast.makeText(this, "", Toast.LENGTH_SHORT);
 	}
 	
 	GrammarListener grammarListener = new GrammarListener() {
@@ -127,7 +259,7 @@ public class OneShotDemo extends Activity{
 		// 设置语法构建路径
 		mAsr.setParameter(ResourceUtil.GRM_BUILD_PATH, grmPath);
 		// 设置本地识别使用语法id
-		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "dynasty");
+		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "dynasty1");
 		// 设置识别的门限值
 		mAsr.setParameter(SpeechConstant.MIXED_THRESHOLD, "30");
 		// 设置资源路径
@@ -212,10 +344,15 @@ public class OneShotDemo extends Activity{
 		public void onResult(final RecognizerResult result, boolean isLast) {
 			if (null != result && !TextUtils.isEmpty(result.getResultString())) {
 				Log.d(TAG, "recognizer result：" + result.getResultString());
-				recoString = JsonParser.parseGrammarResult(result.getResultString());
-				textView.setText(recoString);
-			} else {
-				Log.d(TAG, "recognizer result : null");
+				//recoString = JsonParser.parseGrammarResult(result.getResultString());
+				int recoint = JsonParser.parseGrammarResultcontact(result.getResultString());
+				Log.d(TAG, " "+recoint);
+				if(recoint>30)
+					textView.setText("答对了");
+				else {
+					textView.setText("您好，没听到你说的答案，不好意思");
+					Log.e("TAG", "recognizer result : null");
+				}
 			}
 		}
 
@@ -223,6 +360,7 @@ public class OneShotDemo extends Activity{
 		public void onEndOfSpeech() {
 			// 此回调表示：检测到了语音的尾端点，已经进入识别过程，不再接受语音输入
 			showTip("结束说话");
+			//mediaPlayer.start(); // 开始播放
 		}
 
 		@Override
@@ -233,6 +371,7 @@ public class OneShotDemo extends Activity{
 
 		@Override
 		public void onError(SpeechError error) {
+			textView.setText("答错了");
 			showTip("onError Code："	+ error.getErrorCode());
 		}
 
@@ -244,12 +383,76 @@ public class OneShotDemo extends Activity{
 		}
 
 	};
+	/**
+	 * 识别监听器。
+	 */
+	private RecognizerListener quesRecognizerListener = new RecognizerListener() {
 
+		@Override
+		public void onVolumeChanged(int volume, byte[] data) {
+			showTip("当前正在说话，音量大小：" + volume);
+			Log.d(TAG, "返回音频数据："+data.length);
+		}
 
+		@Override
+		public void onResult(final RecognizerResult result, boolean isLast) {
+			if (null != result && !TextUtils.isEmpty(result.getResultString())) {
+				Log.d(TAG, "recognizer result：" + result.getResultString());
+				//recoString = JsonParser.parseGrammarResult(result.getResultString());
+				int contact = JsonParser.parseGrammarResultcontact(result.getResultString());
+				int callCmd = JsonParser.parseGrammarResultcallCmd(result.getResultString());
+				Log.d(TAG, " "+contact);
+				Log.d(TAG, " "+callCmd);
+				if(contact>30)
+					//减少音量
+					mAudioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER,AudioManager.FX_FOCUS_NAVIGATION_UP);
+				if(callCmd>30)
+					//增加电量
+					mAudioManager.adjustStreamVolume (AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE,AudioManager.FX_FOCUS_NAVIGATION_UP);
+			}
+		}
+
+		@Override
+		public void onEndOfSpeech() {
+			// 此回调表示：检测到了语音的尾端点，已经进入识别过程，不再接受语音输入
+			showTip("结束说话");
+			//mediaPlayer.start(); // 开始播放
+		}
+
+		@Override
+		public void onBeginOfSpeech() {
+			// 此回调表示：sdk内部录音机已经准备好了，用户可以开始语音输入
+			showTip("开始说话");
+		}
+
+		@Override
+		public void onError(SpeechError error) {
+			textView.setText("不好意思,没有听懂你的意思");
+			showTip("onError Code："	+ error.getErrorCode());
+		}
+
+		@Override
+		public void onEvent(int eventType, int arg1, int arg2, Bundle obj) {
+			// 以下代码用于获取与云端的会话id，当业务出错时将会话id提供给技术支持人员，可用于查询会话日志，定位出错原因
+			// 若使用本地能力，会话id为null
+
+		}
+
+	};
+	public void setgram(){
+		String dynasty="dynasty"+posnumber;
+		mLocalGrammar = readFile(OneShotDemo.this, dynasty+".bnf", "utf-8");
+		mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, dynasty);
+		mAsr.buildGrammar("bnf", mLocalGrammar, grammarListener);
+
+		mAsr.startListening(mRecognizerListener);
+	}
+	//private int i=0;
 	private WakeuperListener mWakeuperListener = new WakeuperListener() {
 
 		@Override
 		public void onResult(WakeuperResult result) {
+			mediaPlayer.pause(); // 暂停播放
 			try {
 				String text = result.getResultString();
 				JSONObject object;
@@ -277,8 +480,26 @@ public class OneShotDemo extends Activity{
 				mAsr.stopListening();
 			}
 			textView.setText(resultString);
-			Log.e("111","mRecognizerListener");
-			mAsr.startListening(mRecognizerListener);
+			//Log.e("111","mRecognizerListener");
+/*
+			i++;
+			if(i>1&&i<=10)
+			{
+				String dynasty="dynasty"+i;
+				mLocalGrammar = readFile(OneShotDemo.this, dynasty+".bnf", "utf-8");
+				mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, dynasty);
+			}
+			else {
+				mLocalGrammar = readFile(OneShotDemo.this, "dynasty1.bnf", "utf-8");
+				mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "dynasty1");
+			}
+
+ */
+			mLocalGrammar = readFile(OneShotDemo.this, "voiceadjust.bnf", "utf-8");
+			mAsr.setParameter(SpeechConstant.LOCAL_GRAMMAR, "voiceadjust");
+			mAsr.buildGrammar("bnf", mLocalGrammar, grammarListener);
+
+			mAsr.startListening(quesRecognizerListener);
 
 
 		}
@@ -308,7 +529,6 @@ public class OneShotDemo extends Activity{
 		@Override
 		public void onVolumeChanged(int volume) {
 			// TODO Auto-generated method stub
-			
 		}
 
 	};
@@ -316,6 +536,10 @@ public class OneShotDemo extends Activity{
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		if (mediaPlayer != null) {
+			mediaPlayer.stop();
+			mediaPlayer.release();
+		}
 		Log.d(TAG, "onDestroy OneShotDemo");
 		mIvw = VoiceWakeuper.getWakeuper();
 
@@ -366,8 +590,8 @@ public class OneShotDemo extends Activity{
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				//mToast.setText(str);
-				//mToast.show();
+				mToast.setText(str);
+				mToast.show();
 			}
 		});
 	}
